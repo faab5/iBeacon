@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Device Scanner Application</string>
+    <string name="action_settings">Settings</string>
+
+    <string name="scanservice_action_start">Start scanner</string>
+    <string name="scanservice_action_stop">Stop scanner</string>
+
+    <string name="switch1">New Switch</string>
+    <string name="button1">Scanner</string>
+
+</resources>
