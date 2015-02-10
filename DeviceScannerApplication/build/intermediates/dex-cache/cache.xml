@@ -2,32 +2,32 @@
 <items version="2" >
 
     <item
-        jar="/home/fjansen/AndroidStudioProjects/DeviceScannerApplication/app/build/intermediates/exploded-aar/com.android.support/appcompat-v7/21.0.3/classes.jar"
+        jar="/home/fjansen/AndroidStudioProjects/iBeacon/DeviceScannerApplication/app/build/intermediates/exploded-aar/com.android.support/support-v4/21.0.3/classes.jar"
         jumboMode="false"
         revision="21.1.2"
-        sha1="81d42bf983a8741f4888a6e333e454e4a5e0eeb7">
-        <dex dex="/home/fjansen/AndroidStudioProjects/DeviceScannerApplication/app/build/intermediates/pre-dexed/debug/classes-a677050b2064111702b6b2e3e6c516bfd7b1ab06.jar" />
+        sha1="2c91c949a45a21cdecf26e03951e46c7beec9ad8">
+        <dex dex="/home/fjansen/AndroidStudioProjects/iBeacon/DeviceScannerApplication/app/build/intermediates/pre-dexed/debug/classes-736e12b7eaabb6a0a70ad106acf6c81a57deffcf.jar" />
     </item>
     <item
-        jar="/home/fjansen/AndroidStudioProjects/DeviceScannerApplication/app/build/intermediates/exploded-aar/com.android.support/support-v4/21.0.3/libs/internal_impl-21.0.3.jar"
+        jar="/home/fjansen/AndroidStudioProjects/iBeacon/DeviceScannerApplication/app/build/intermediates/exploded-aar/com.android.support/support-v4/21.0.3/libs/internal_impl-21.0.3.jar"
         jumboMode="false"
         revision="21.1.2"
         sha1="01ec05bfbafcc07646ba813000bf2ef11742dd03">
-        <dex dex="/home/fjansen/AndroidStudioProjects/DeviceScannerApplication/app/build/intermediates/pre-dexed/debug/internal_impl-21.0.3-b5840fb85035117de84598c59730fb3599baa8ea.jar" />
+        <dex dex="/home/fjansen/AndroidStudioProjects/iBeacon/DeviceScannerApplication/app/build/intermediates/pre-dexed/debug/internal_impl-21.0.3-09589e221e448ab5f6194af51c791390cd06346a.jar" />
+    </item>
+    <item
+        jar="/home/fjansen/AndroidStudioProjects/iBeacon/DeviceScannerApplication/app/build/intermediates/exploded-aar/com.android.support/appcompat-v7/21.0.3/classes.jar"
+        jumboMode="false"
+        revision="21.1.2"
+        sha1="81d42bf983a8741f4888a6e333e454e4a5e0eeb7">
+        <dex dex="/home/fjansen/AndroidStudioProjects/iBeacon/DeviceScannerApplication/app/build/intermediates/pre-dexed/debug/classes-c0e2553939969690fab17e8ce04036ffa4a40209.jar" />
     </item>
     <item
         jar="/home/fjansen/Android/Sdk/extras/android/m2repository/com/android/support/support-annotations/21.0.3/support-annotations-21.0.3.jar"
         jumboMode="false"
         revision="21.1.2"
         sha1="4b74cefe1f0c1b819e7260c8627a14674e37fd35">
-        <dex dex="/home/fjansen/AndroidStudioProjects/DeviceScannerApplication/app/build/intermediates/pre-dexed/debug/support-annotations-21.0.3-1067530b837594c562561484c4c1ab78d44d526c.jar" />
-    </item>
-    <item
-        jar="/home/fjansen/AndroidStudioProjects/DeviceScannerApplication/app/build/intermediates/exploded-aar/com.android.support/support-v4/21.0.3/classes.jar"
-        jumboMode="false"
-        revision="21.1.2"
-        sha1="2c91c949a45a21cdecf26e03951e46c7beec9ad8">
-        <dex dex="/home/fjansen/AndroidStudioProjects/DeviceScannerApplication/app/build/intermediates/pre-dexed/debug/classes-a769f02ac735e0ea2fc84241941bec5edf1e8395.jar" />
+        <dex dex="/home/fjansen/AndroidStudioProjects/iBeacon/DeviceScannerApplication/app/build/intermediates/pre-dexed/debug/support-annotations-21.0.3-1067530b837594c562561484c4c1ab78d44d526c.jar" />
     </item>
 
 </items>

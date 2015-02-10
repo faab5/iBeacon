@@ -22,4 +22,5 @@
             android:id="@+id/button1"
             android:layout_gravity="right" />
     </LinearLayout>
+
 </LinearLayout>

@@ -17,7 +17,6 @@
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -28,6 +27,20 @@
             android:exported="false" >
         </service>
 
+        <activity
+            android:name=".DeviceScannerApplication.DeviceScannerApplication.ScanActivity"
+            android:label="@string/title_activity_scan"
+            android:parentActivityName=".DeviceScannerApplication.DeviceScannerApplication.MainActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="com.example.fjansen.devicescannerapplication.DeviceScannerApplication.DeviceScannerApplication.MainActivity" />
+        </activity>
+
+        <service
+            android:name="common.NotifiedService"
+            android:enabled="true"
+            android:exported="true" >
+        </service>
     </application>
 
 </manifest>

@@ -16,27 +16,20 @@ public class MainActivity extends ActionBarActivity {
 
     private static final String TAG = "MainActivity";
 
-    //private Switch switch1;
-    private Button button1;
+    public Button button1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.d(TAG, "onCreate()");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        //switch1 = (Switch) findViewById(R.id.switch1);
 
         // ***** Set Button to turn the ScanService on and off *****
         button1 = (Button) findViewById(R.id.button1);
         button1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.d(TAG, "click "+ScanService.isRunning());
-                if (ScanService.isRunning()) {
-                    stopService(new Intent(MainActivity.this, ScanService.class));
-                } else {
-                    startService(new Intent(MainActivity.this, ScanService.class));
-                }
+                startActivity(new Intent(MainActivity.this,ScanActivity.class));
             }
         });
     }
@@ -89,7 +82,7 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private void set() {
-        if (ScanService.isRunning()) {
+        if (ScanService.STATE == ScanService.STATE_ON) {
             button1.setText(R.string.scanservice_action_stop);
         } else {
             button1.setText(R.string.scanservice_action_start);
