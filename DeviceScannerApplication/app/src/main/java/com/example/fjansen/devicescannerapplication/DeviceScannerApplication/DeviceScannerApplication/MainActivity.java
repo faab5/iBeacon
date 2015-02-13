@@ -82,10 +82,6 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private void set() {
-        if (ScanService.STATE == ScanService.STATE_ON) {
-            button1.setText(R.string.scanservice_action_stop);
-        } else {
-            button1.setText(R.string.scanservice_action_start);
-        }
+
     }
 }

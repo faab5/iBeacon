@@ -40,11 +40,7 @@ public class ScanActivity extends ActionBarActivity {
         button1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (ScanService.STATE == ScanService.STATE_ON) {
-                    stopService(new Intent(ScanActivity.this, ScanService.class));
-                } else {
-                    startService(new Intent(ScanActivity.this, ScanService.class));
-                }
+                startService(new Intent(ScanActivity.this,ScanService.class));
             }
         });
 
@@ -83,20 +79,6 @@ public class ScanActivity extends ActionBarActivity {
     protected void onResume() {
         Log.d(TAG, "onResume()");
         super.onResume();
-        if (ScanService.STATE == ScanService.STATE_ON) {
-            if (bluetoothAdapter.isEnabled()) {
-                text1.setText("The device scanner is scanning for devices.");
-                button1.setText("Stop scanning");
-            } else {
-                text1.setText("Bluetooth is turned off. Turn bluetooth on to start scanning for devices.");
-                button1.setText("Stop scanning");
-                button2.setText("Start Bluetooth");
-                button2.setVisibility(Button.VISIBLE);
-            }
-        } else {
-            text1.setText("The device scanner is disabled. Click the button to start scanning for devices.");
-            button1.setText("Start scanning");
-        }
     }
 
     @Override
@@ -158,22 +140,9 @@ public class ScanActivity extends ActionBarActivity {
                     state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
                     switch (state) {
                         case BluetoothAdapter.STATE_OFF:
-                            if (ScanService.STATE == ScanService.STATE_ON) {
-                                text1.setText("Bluetooth is turned off. Turn bluetooth on to start scanning for devices.");
-                                button2.setText("Start Bluetooth");
-                                button2.setVisibility(Button.VISIBLE);
-                            }
+
                             break;
                         case BluetoothAdapter.STATE_ON:
-                            if (ScanService.STATE == ScanService.STATE_ON) {
-                                text1.setText("The device scanner is scanning for devices.");
-                                button1.setText("Stop scanning");
-                                button2.setVisibility(Button.INVISIBLE);
-                            } else {
-                                text1.setText("The device scanner is disabled. Click the button to start scanning for devices.");
-                                button1.setText("Start scanning");
-                                button2.setVisibility(Button.INVISIBLE);
-                            }
                             break;
                     }
                     break;

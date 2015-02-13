@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -22,6 +23,7 @@ public class ScanService extends NotifiedService {
 
     static private final String TAG = "ScanService";
 
+    // ***** Broadcast Messages
     static public final String ACTION_STATE_CHANGED = "com.example.fjansen.devicescannerapplication.scanservice.action_state_changed";
     static public final String EXTRA_STATE          = "com.example.fjansen.devicescannerapplication.scanservice.extra_state";
     static public final String ACTION_FOUND         = "com.example.fjansen.devicescannerapplication.scanservice.action_found";
@@ -29,244 +31,211 @@ public class ScanService extends NotifiedService {
     static public final String ACTION_LIST          = "com.example.fjansen.devicescannerapplication.scanservice.action_list";
     static public final String EXTRA_LIST           = "com.example.fjansen.devicescannerapplication.scanservice.extra_list";
 
-    static public final int STATE_ON  = 1;
-    static public final int STATE_OFF = 0;
+    // ***** Scanner
+    private Runnable scanner;
+    private Thread   scannerThread = null;
+    private BluetoothAdapter.LeScanCallback leScanCallback;
+    private Control  controller;
+    private Receiver receiver;
 
-    static public int STATE = STATE_OFF;
+    static private ArrayList<Device> DEVICESLIST = new ArrayList<>();
 
-    private BluetoothAdapter bluetoothAdapter;
-
-    private Listener scanServiceListener;
-
-    private Scanner scanner;
-    private Thread  scannerThread = null;
-
-    static public int scanLengthSeconds = 10;
-    static public int scanIdleSeconds   = 10;
-    static private ArrayList<Device> deviceList = new ArrayList<>();
-    static public Bundle getDeviceList() {
+    static public Bundle getDevicesList() {
         Bundle result = new Bundle();
-        synchronized (deviceList) {
-            result.putParcelableArrayList(EXTRA_LIST, deviceList);
+        synchronized (DEVICESLIST) {
+            result.putParcelableArrayList(EXTRA_LIST, DEVICESLIST);
         }
         return result;
     }
 
     @Override
-    public PersistentNotificationBuilder getNotification() {
-        return (PersistentNotificationBuilder)
-                (new PersistentNotificationBuilder(this, R.drawable.ic_scanservice,
-                        "Device Scanner", "Scanning for devices", R.drawable.ic_scanservice_notification_stop, "Stop Scanner"))
-                        .setTicker("Scanning for devices").setContentIntent(PendingIntent.getActivity(this, 1,
-                        new Intent(this, ScanActivity.class), PendingIntent.FLAG_UPDATE_CURRENT));
-    }
-    private void notifyFullService() {
-        PersistentNotificationBuilder notificationBuilder = getNotification();
-        doNotification(notificationBuilder);
-    }
-    private void notifyTurnOnBluetooth() {
-        PersistentNotificationBuilder notificationBuilder = getNotification();
-        notificationBuilder.setTicker("Bluetooth disabled");
-        notificationBuilder.setContentText("Turn on bluetooth to start scanning");
-        PendingIntent pendingBtIntent = PendingIntent.getActivity(ScanService.this, 0, new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), PendingIntent.FLAG_CANCEL_CURRENT);
-        notificationBuilder.addAction(R.drawable.ic_bluetooth, "Start Bluetooth", pendingBtIntent);
-        doNotification(notificationBuilder);
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        Log.d(TAG, "onCreate()");
-        scanner             = new Scanner();
-        bluetoothAdapter    = BluetoothAdapter.getDefaultAdapter();
-        scanServiceListener = new Listener();
-        registerReceiver(scanServiceListener, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
-        registerReceiver(scanServiceListener, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_STARTED));
-        registerReceiver(scanServiceListener, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
-        registerReceiver(scanServiceListener, new IntentFilter(BluetoothDevice.ACTION_FOUND));
-        registerReceiver(scanServiceListener, new IntentFilter(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED));
-    }
-
-    /**
-     * @param intent  The intent
-     * @param flags   TART_FLAG_REDELIVERY, or START_FLAG_RETRY
-     * @param startId A unique integer representing this specific request to start.
-     *                Use with stopSelfResult(int).
-     * @return        START_NOT_STICKY, START_STICKY, or START_REDELIVER_INTENT
-     */
-    @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand()");
-        // ***** Start scanner *****
-        PersistentNotificationBuilder notificationBuilder = getNotification();
-        if (bluetoothAdapter.isEnabled()) {
-            if (scannerThread == null) {
-                scannerThread = new Thread(scanner);
-                scannerThread.start();
-            } else if (!scannerThread.isAlive()) {
-                scannerThread.interrupt();
-                scannerThread = new Thread(scanner);
-                scannerThread.start();
-            }
-            notifyFullService();
-        } else {
-            if (scannerThread != null) {
-                scannerThread.interrupt();
-                scannerThread = null;
-            }
-            notifyTurnOnBluetooth();
-        }
-
-        // ***** Update status *****
-        if (STATE != STATE_ON) {
-            intent = new Intent();
-            intent.setAction(ACTION_STATE_CHANGED);
-            intent.putExtra(EXTRA_STATE, STATE_ON);
-            sendBroadcast(intent);
-        }
-        STATE = STATE_ON;
+        receiver.onReceive(this, new Intent(ACTION_START));
         return START_REDELIVER_INTENT;
     }
 
-
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        return binder;
+    }
+    public class LocalBinder extends Binder {
+        ScanService getService() {
+            return ScanService.this;
+        }
+    }
+    private IBinder binder = new LocalBinder();
+
+    @Override
+    public void onCreateService() {
+        Log.d(TAG, "onCreateService()");
+
+        controller = new Control();
+        receiver = new Receiver(controller);
+        registerReceiver(receiver, new IntentFilter(Receiver.ACTION_START));
+        registerReceiver(receiver, new IntentFilter(Receiver.ACTION_STOP));
+        registerReceiver(receiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
+        registerReceiver(receiver, new IntentFilter(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED));
+
+
+        // ***** Setup a callback when a Bluetooth Low Energy device is found
+        leScanCallback = new BluetoothAdapter.LeScanCallback() {
+            @Override
+            public void onLeScan(BluetoothDevice btdevice, int rssi, byte[] scanRecord) {
+                Device device = new Device(btdevice, new Timestamp(System.currentTimeMillis()), rssi, scanRecord);
+                synchronized (DEVICESLIST) {
+                    int pos = DEVICESLIST.size();
+                    for (int i = 0; i < DEVICESLIST.size(); ++i) {
+                        if (DEVICESLIST.get(i).device.getAddress().trim().equalsIgnoreCase(btdevice.getAddress().trim())) {
+                            pos = i;
+                            break;
+                        }
+                    }
+                    if (pos < DEVICESLIST.size()) {
+                        DEVICESLIST.set(pos, device);
+                    } else {
+                        DEVICESLIST.add(device);
+                    }
+                }
+                Intent intent = new Intent(ScanService.ACTION_FOUND);
+                intent.putExtra(ScanService.EXTRA_DEVICE, device);
+                ScanService.this.sendBroadcast(intent);
+            }
+        };
+
+        // Setup the scanner to scan for Bluetooth Low Energy devices
+        scanner = new Runnable() {
+            @Override
+            public void run() {
+                BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                while (true) {
+                    try {
+                        synchronized (DEVICESLIST) {
+                            DEVICESLIST.clear();
+                        }
+                        bluetoothAdapter.startLeScan(leScanCallback);
+                        Thread.sleep(SCANLENGTHSECONDS * 1000);
+                        bluetoothAdapter.stopLeScan(leScanCallback);
+                        Intent intent = new Intent(ScanService.ACTION_LIST);
+                        synchronized (DEVICESLIST) {
+                            intent.putParcelableArrayListExtra(ScanService.EXTRA_LIST, DEVICESLIST);
+                        }
+                        sendBroadcast(intent);
+                        if (SCANWAITSECONDS > 0) Thread.sleep(SCANWAITSECONDS *1000);
+                    } catch (InterruptedException e) {
+                        synchronized (DEVICESLIST) {
+                            DEVICESLIST.clear();
+                        }
+                        break;
+                    }
+                }
+            }
+        };
+
+
     }
 
     @Override
-    public void onDestroy() {
-        super.onDestroy();
-        Log.d(TAG, "onDestroy()");
-        // ***** Stop scanning *****
+    public void onDestroyService() {
+        Log.d(TAG, "onDestroyService()");
         if (scannerThread != null) {
             scannerThread.interrupt();
             scannerThread = null;
         }
-        // ***** Unregister broadcast receiver
-        unregisterReceiver(scanServiceListener);
-        // ***** Update status *****
-        Intent intent = new Intent();
-        intent.setAction(ACTION_STATE_CHANGED);
-        intent.putExtra(EXTRA_STATE, STATE_OFF);
-        sendBroadcast(intent);
-        STATE = STATE_OFF;
+        unregisterReceiver(receiver);
     }
+
+
+    // ***** Notifications
+    static private final int NOTIFICATION_CONTENT_INTENT_REQUEST_CODE           = 20105;
+    static private final int NOTIFICATION_ACTION_TURN_ON_BLUETOOTH_REQUEST_CODE = 20106;
+    static private final int NOTIFICATION_ACTION_TURN_ON_SCANNER_REQUEST_CODE   = 20107;
 
     @Override
-    public boolean onUnbind(Intent intent) {
-        return super.onUnbind(intent);
+    public PersistentNotificationBuilder notificationBuilder() {
+        PersistentNotificationBuilder notificationBuilder = new PersistentNotificationBuilder(this, R.drawable.ic_scanservice, "Scanner", "Scanning for beacons", R.drawable.ic_scanservice_notification_stop, "Stop the scanner");
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, NOTIFICATION_CONTENT_INTENT_REQUEST_CODE, new Intent(this, ScanActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+        notificationBuilder.setContentIntent(pendingIntent);
+        return notificationBuilder;
     }
 
-    @Override
-    public void onRebind(Intent intent) {
-        super.onRebind(intent);
+
+
+
+
+
+
+
+
+
+
+    static public final String REQUEST_STATE = "REQUEST_STATUS";
+    static public final int STATE_OFF        = 0;
+    static public final int STATE_ON         = 1;
+
+    static public final String BLUETOOTH_DEPENDENCE  = "BLUETOOTH_DEPENDENCE";
+    static public final int RUN_IF_BLUETOOTH_ON_ONLY = 1;
+
+    static public final String BLUETOOTH_CONNECTION_DEPENDENCE    = "BLUETOOTH_CONNECTION_DEPENDENCE";
+    static public final int RUN_IF_BLUETOOTH_DISCONNECTED_ONLY    = 1;
+    static public final int RUN_IF_BLUETOOTH_CONNECTION_UNKNOWN   = 2;
+    static public final int RUN_REGARDLESS_OF_BLUETOOTH_CONNECTED = 3;
+
+    static public String SCAN_LENGTH_SECONDS = "SCAN_LENGTH_SECONDS";
+    static public String SCAN_WAIT_SECONDS   = "SCAN_WAIT_SECONDS";
+
+    static public class Control {
+        private Bundle config;
+        public Control() {
+            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+            config = new Bundle();
+            config.putInt(REQUEST_STATE, STATE_OFF);
+            config.putInt(BluetoothAdapter.EXTRA_STATE, bluetoothAdapter.getState());
+            config.putInt(BluetoothAdapter.EXTRA_CONNECTION_STATE, -1);
+            config.putInt(BLUETOOTH_DEPENDENCE, RUN_IF_BLUETOOTH_ON_ONLY);
+            config.putInt(BLUETOOTH_CONNECTION_DEPENDENCE, RUN_IF_BLUETOOTH_DISCONNECTED_ONLY);
+            config.putInt(SCAN_LENGTH_SECONDS, 10);
+            config.putInt(SCAN_WAIT_SECONDS, 10);
+        }
+        final public Bundle get() {
+            return new Bundle(config);
+        }
+        final public void set(Bundle new_config) {
+            int request_state       = new_config.getInt(REQUEST_STATE);
+            int bt_state            = new_config.getInt(BluetoothAdapter.EXTRA_STATE);
+            int bt_connection_state = new_config.getInt(BluetoothAdapter.EXTRA_CONNECTION_STATE);
+
+            config = new_config;
+        }
     }
 
 
-    /**
-     * Listens for changes in Bluetooth connection
-     */
-    public class Listener extends BroadcastReceiver {
-        static private final String TAG = "ScanService.Listener";
+    static public final String ACTION_START = "ACTION_START";
+    static public final String ACTION_STOP  = "ACTION_STOP";
+
+    static public class Receiver extends BroadcastReceiver {
+        private Control control;
+        public Receiver(Control control) {
+            this.control = control;
+        }
         @Override
         public void onReceive(Context context, Intent intent) {
+            Bundle config = control.get();
             String action = intent.getAction();
-            Log.d(TAG, action);
             switch (action) {
+                case ACTION_START:
+                    config.putInt(REQUEST_STATE, STATE_ON);
+                    break;
+                case ACTION_STOP:
+                    config.putInt(REQUEST_STATE, STATE_OFF);
+                    break;
                 case BluetoothAdapter.ACTION_STATE_CHANGED:
-                    int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
-                    switch (state) {
-                        case BluetoothAdapter.STATE_OFF:
-                            notifyTurnOnBluetooth();
-                            break;
-                        case BluetoothAdapter.STATE_ON:
-                            if (scannerThread == null) {
-                                scannerThread = new Thread(scanner);
-                                scannerThread.start();
-                            } else if (!scannerThread.isAlive()) {
-                                scannerThread.interrupt();
-                                scannerThread = new Thread(scanner);
-                                scannerThread.start();
-                            }
-                            notifyFullService();
-                            break;
-                    }
+                    config.putInt(BluetoothAdapter.EXTRA_STATE, intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1));
                     break;
-                case BluetoothAdapter.ACTION_DISCOVERY_STARTED:
-                    // ToDo Update notification
-                    break;
-                case BluetoothAdapter.ACTION_DISCOVERY_FINISHED:
-                    // ToDo Update notification
-                    break;
-                case BluetoothAdapter.ACTION_SCAN_MODE_CHANGED:
-                    // ToDo Update notification
-                    break;
+                case BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED:
+                    config.putInt(BluetoothAdapter.EXTRA_CONNECTION_STATE, intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, -1));
             }
+            control.set(config);
         }
     }
-
-    /**
-     * Scans for Bluetooth devices
-     */
-    public class Scanner implements Runnable {
-        static private final String TAG = "ScanService.Scanner";
-        @Override
-        public void run() {
-            Log.d(TAG, "run()");
-            while (true) {
-                try {
-                    synchronized (deviceList) {
-                        deviceList.clear();
-                    }
-                    bluetoothAdapter.startLeScan(startLeScanCallback);
-                    Thread.sleep(scanLengthSeconds * 1000);
-                    bluetoothAdapter.stopLeScan(startLeScanCallback);
-                    Intent intent = new Intent(ScanService.ACTION_LIST);
-                    synchronized (deviceList) {
-                        intent.putParcelableArrayListExtra(ScanService.EXTRA_LIST, deviceList);
-                    }
-                    sendBroadcast(intent);
-                    if (scanIdleSeconds > 0) Thread.sleep(scanIdleSeconds*1000);
-                } catch (InterruptedException e) {
-                    Log.d(TAG, "interrupted");
-                    synchronized (deviceList) {
-                        deviceList.clear();
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
-
-    /**
-     * Callback for LE devices found
-     */
-    BluetoothAdapter.LeScanCallback startLeScanCallback = new BluetoothAdapter.LeScanCallback() {
-        static private final String TAG = "startLeScanCallback";
-        @Override
-        public void onLeScan(BluetoothDevice btdevice, int rssi, byte[] scanRecord) {
-            Device device = new Device(btdevice, new Timestamp(System.currentTimeMillis()), rssi, scanRecord);
-            Log.d(TAG, device.toString());
-            synchronized (deviceList) {
-                int pos = deviceList.size();
-                for (int i = 0; i < deviceList.size(); ++i) {
-                    if (deviceList.get(i).device.getAddress().trim().equalsIgnoreCase(btdevice.getAddress().trim())) {
-                        pos = i;
-                        break;
-                    }
-                }
-                if (pos < deviceList.size()) {
-                    deviceList.set(pos, device);
-                } else {
-                    deviceList.add(device);
-                }
-            }
-            // Broadcast the device
-            Intent intent = new Intent(ScanService.ACTION_FOUND);
-            intent.putExtra(ScanService.EXTRA_DEVICE, device);
-            ScanService.this.sendBroadcast(intent);
-        }
-    };
 }

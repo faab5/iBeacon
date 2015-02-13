@@ -35,11 +35,12 @@ public class NotifiedService extends Service {
 
     /**
      * Creates a service with a persistent notification in the notification tray
-     * When overriding this method don't remove the super method, nor in onDestroy()
-     * To change the notification icon, title, text, etc. override the getNotification
+     * This method is final to ensure a persistent notification.
+     * Override onCreateService() to implement initializations.
+     * Override notificationBuilder() for a custom notification
      */
     @Override
-    public void onCreate() {
+    final public void onCreate() {
         super.onCreate();
 
         // Register a broadcast receiver to catch service stop request
@@ -55,18 +56,22 @@ public class NotifiedService extends Service {
         registerReceiver(stopReceiver, new IntentFilter(NotifiedService.ACTION_STOP));
 
         // Set up a persistent notification
-        PersistentNotificationBuilder notificationBuilder = getNotification();
+        PersistentNotificationBuilder notificationBuilder = notificationBuilder();
         if (notificationBuilder==null) {
             stopSelf();
         } else {
-            doNotification(notificationBuilder);
+            makePersistentNotification(notificationBuilder);
         }
+        onCreateService();
+    }
+
+    public void onCreateService() {
     }
 
     /**
      * Override this method for a custom persistent notification
      */
-    public PersistentNotificationBuilder getNotification()  {
+    public PersistentNotificationBuilder notificationBuilder()  {
         String mainTitle = getPackageName();
         String mainText  = "Running";
         String stopText  = "STOP";
@@ -82,7 +87,7 @@ public class NotifiedService extends Service {
     /**
      * Make or update the persistent notification
      */
-    final public void doNotification(PersistentNotificationBuilder notificationBuilder) {
+    final public void makePersistentNotification(PersistentNotificationBuilder notificationBuilder) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.notify(NOTIFICATION_TAG, NOTIFICATION_ID, notificationBuilder.build());
     }
@@ -92,16 +97,23 @@ public class NotifiedService extends Service {
         return super.onStartCommand(intent, flags, startId);
     }
 
+    /**
+     * Cleans up the service and notification
+     * This method is made final to ensure cleaning up of the notification
+     * Override onDestroyService() to implement other clean up actions
+     */
     @Override
-    public void onDestroy() {
+    final public void onDestroy() {
         super.onDestroy();
-
         // Unregister the receiver
         unregisterReceiver(stopReceiver);
-
         // Cancel the notification
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancel(NOTIFICATION_TAG, NOTIFICATION_ID);
+        onDestroyService();
+    }
+
+    public void onDestroyService(){
     }
 
 
@@ -110,8 +122,7 @@ public class NotifiedService extends Service {
      */
     static private final String NOTIFICATION_TAG = "com.fjansen.common.notifiedservice.notification";
     static private final int    NOTIFICATION_ID  = 1055;
-
-    static private final int PENDING_INTENT_ACTION_STOP_REQUEST_CODE = 1056;
+    static private final int    PENDING_INTENT_ACTION_STOP_REQUEST_CODE = 1056;
 
     /**
      * Class to easily build a persistent notification
